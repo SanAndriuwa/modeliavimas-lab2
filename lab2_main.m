@@ -101,6 +101,12 @@ semilogy(orders,max(maxError,eps),'-o');
 legend(methods,'Location','best'); xlabel('Degree'); ylabel('Maximum error'); grid on;
 end
 
+% Keep plots readable when MATLAB uses a dark theme.
+set(findall(groot,'Type','figure'),'Color','w');
+set(findall(groot,'Type','axes'),'Color','w','XColor','k','YColor','k');
+set(findall(groot,'Type','legend'),'Color','w','TextColor','k');
+set(findall(groot,'Type','text'),'Color','k');
+
 function c = taylor_coefficients(variant,x0,n)
 % Expand numerator and denominator in ascending powers of s = x-x0.
 p = zeros(1,n+1); q = p;
