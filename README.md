@@ -21,6 +21,12 @@ Aproksimuokite funkcijas Lagranžo, Niutono, Čebyševo daugianariais, Padé rac
 
 Šaltinis: `interp.pdf` ir dėstytojo pateiktos `interp.zip` funkcijos.
 
+## Atskiros funkcijos
+
+Pagrindinis skriptas iš tikrųjų kviečia `lagran()`, `niuton()`, `cheby()` ir `padeap()` iš atskirų `.m` failų. `padeap.m` yra pateikto `pade.m` adaptacija: išlaikyta Teiloro koeficientų suderinimo sistema, pridėtas singuliarios sistemos apdorojimas ir saugus vardiklio normalizavimas.
+
+`taylor_coefficients.m` pateikia tikslius šešių užduoties funkcijų Teiloro koeficientus. Juos skriptas perduoda `padeap()` papildomu septintu argumentu. Be šio argumento `padeap()` naudoja pateiktą `difapx()` skaitinių išvestinių kelią; jis taip pat paliktas atskirame faile.
+
 ## Paleidimas
 
 Atidarykite [lab2_main.m](lab2_main.m) ir paspauskite **Run**. Visus `.m` failus laikykite tame pačiame aplanke. Papildomų toolbox nereikia: Teiloro koeficientai apskaičiuojami žinomų laipsninių eilučių koeficientų palyginimu.

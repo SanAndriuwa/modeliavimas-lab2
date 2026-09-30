@@ -41,13 +41,13 @@ for i = 1:length(orders)
     c = taylor_coefficients(variant,x0,n);
     % For order n, the Pade degrees add up to n.
     M = floor(n/2); N = n-M;
-    [num,den,M,N] = pade_coefficients(c,M,N);
+    [num,den,taylor,M,N] = padeap(f,x0,M,N,a,b,c);
     padeDegrees(i,:) = [M N];
     shiftedX = x-x0;
-    yTaylor = polyval(fliplr(c),shiftedX);
-    denominator = polyval(fliplr(den),shiftedX);
+    yTaylor = polyval(taylor,shiftedX);
+    denominator = polyval(den,shiftedX);
     % Detect poles between grid points as well as at grid points.
-    denRoots = roots(fliplr(den));
+    denRoots = roots(den);
     realPoles = real(denRoots(abs(imag(denRoots)) < 1e-8))+x0;
     realPoles = realPoles(realPoles >= a & realPoles <= b);
     if ~isempty(realPoles)
@@ -55,7 +55,7 @@ for i = 1:length(orders)
         fprintf('%g ',realPoles); fprintf('\n');
     end
     approx = [polyval(pL,x); polyval(pN,x); polyval(pC,x); ...
-        polyval(fliplr(num),shiftedX)./denominator; spline(nodes,values,x)];
+        polyval(num,shiftedX)./denominator; spline(nodes,values,x)];
     for j = 1:5
         mse(i,j) = mean((y-approx(j,:)).^2);
         maxError(i,j) = max(abs(y-approx(j,:)));
@@ -106,67 +106,3 @@ set(findall(groot,'Type','figure'),'Color','w');
 set(findall(groot,'Type','axes'),'Color','w','XColor','k','YColor','k');
 set(findall(groot,'Type','legend'),'Color','w','TextColor','k');
 set(findall(groot,'Type','text'),'Color','k');
-
-function c = taylor_coefficients(variant,x0,n)
-% Expand numerator and denominator in ascending powers of s = x-x0.
-p = zeros(1,n+1); q = p;
-switch variant
-    case 1
-        p(1:2) = [1+x0 1]; q(1) = log(1+x0);
-        for j = 1:n
-            q(j+1) = (-1)^(j+1)/(j*(1+x0)^j);
-        end
-    case 2
-        p(1) = 1; q(1) = 1+exp(x0);
-        for j = 1:n
-            q(j+1) = exp(x0)/factorial(j);
-        end
-    case {3,4}
-        p(1:2) = [x0 1]; q(1:3) = [1+x0^2 2*x0 1];
-    case {5,6}
-        power = variant-2; % 3 for variant 5, 4 for variant 6
-        p(1) = 1; q(1) = 1+x0^power;
-        for j = 1:min(n,power)
-            q(j+1) = nchoosek(power,j)*x0^(power-j);
-        end
-end
-% Coefficient matching in q(s)*c(s) = p(s).
-c = zeros(1,n+1);
-for j = 0:n
-    value = p(j+1);
-    for r = 1:j
-        value = value-q(r+1)*c(j-r+1);
-    end
-    c(j+1) = value/q(1);
-end
-end
-
-function [num,den,M,N] = pade_coefficients(c,M,N)
-% Coefficients are stored in ascending powers of (x-x0).
-% Exact rational functions can give a singular full-size Pade system.
-% Reduce the denominator degree until the system is nonsingular.
-total = M+N;
-while N > 0
-    A = zeros(N); rhs = zeros(N,1);
-    for row = 1:N
-        power = M+row;
-        rhs(row) = -c(power+1);
-        for col = 1:N
-            if power-col >= 0
-                A(row,col) = c(power-col+1);
-            end
-        end
-    end
-    if rcond(A) > 1e-12
-        break;
-    end
-    N = N-1; M = total-N;
-end
-if N == 0
-    den = 1;
-else
-    den = [1; A\rhs]';
-end
-num = conv(c,den);
-num = num(1:M+1);
-end
