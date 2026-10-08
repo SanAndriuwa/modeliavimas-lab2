@@ -1,7 +1,15 @@
-% Function approximation: all six PDF variants.
+%20194658
+
+% Function approximation: choose which variants to plot.
 clear; clc; close all;
-variants = 1:6; % use, for example, [1 4] to run selected variants
+
+variants = input('Enter variant number(s) to run [1-6], e.g. 3 or [1 4]: ');
+if isempty(variants)
+    variants = 1:6;
+end
+
 for variant = variants
+
 fprintf('\nFUNCTION VARIANT %d\n',variant);
 switch variant
     case 1
