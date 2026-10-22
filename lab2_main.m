@@ -1,116 +1,55 @@
-%20194658
-
-% Function approximation: choose which variants to plot.
+% Interpoliacija ir funkciju aproksimacija.
 clear; clc; close all;
+studento_nr = 20194658;
+variantas = mod(studento_nr,5); % Pagal uzduoti: 0-4.
 
-variants = input('Enter variant number(s) to run [1-6], e.g. 3 or [1 4]: ');
-if isempty(variants)
-    variants = 1:6;
-end
-
-for variant = variants
-
-fprintf('\nFUNCTION VARIANT %d\n',variant);
-switch variant
-    case 1
+switch variantas
+    case 0
         f = @(x) (1+x)./log(1+x); a = 1; b = 5;
-    case 2
+    case 1
         f = @(x) 1./(1+exp(x)); a = -10; b = 10;
-    case 3
+    case 2
         f = @(x) x./(1+x.^2); a = -10; b = 10;
-    case 4
+    case 3
         f = @(x) x./(1+x.^2); a = 0; b = 2;
-    case 5
+    case 4
         f = @(x) 1./(1+x.^3); a = 0; b = 2;
-    case 6
+    case 5 % PDF yra ir 5 variantas, bet mod(nr,5) jo neparenka.
         f = @(x) 1./(1+x.^4); a = -2; b = 2;
-    otherwise
-        error('variant must be from 1 to 6.');
 end
-orders = [2 3 5 7 9];
+fprintf('Variantas: %d\n',variantas);
+eiles = [2 3 5 7 9];
 x = linspace(a,b,1001);
 y = f(x);
-x0 = (a+b)/2;
-methods = {'Lagrange','Newton','Chebyshev','Pade','Spline'};
-mse = zeros(length(orders),5);
-maxError = mse;
-nodeDifference = zeros(length(orders),1);
-padeDegrees = zeros(length(orders),2);
+NMSE = zeros(5,4);
+metodai = {'Lagrange uniform','Lagrange Chebyshev', ...
+    'Spline uniform','Spline Chebyshev'};
 
-for i = 1:length(orders)
-    n = orders(i);
-    nodes = linspace(a,b,n+1);
-    values = f(nodes);
-    pL = lagran(nodes,values);
-    pN = niuton(nodes,values);
-    [pC,chebNodes,chebValues] = cheby(f,n,a,b);
-
-    % Known power series avoid unstable high-order numerical derivatives.
-    c = taylor_coefficients(variant,x0,n);
-    % For order n, the Pade degrees add up to n.
-    M = floor(n/2); N = n-M;
-    [num,den,taylor,M,N] = padeap(f,x0,M,N,a,b,c);
-    padeDegrees(i,:) = [M N];
-    shiftedX = x-x0;
-    yTaylor = polyval(taylor,shiftedX);
-    denominator = polyval(den,shiftedX);
-    % Detect poles between grid points as well as at grid points.
-    denRoots = roots(den);
-    realPoles = real(denRoots(abs(imag(denRoots)) < 1e-8))+x0;
-    realPoles = realPoles(realPoles >= a & realPoles <= b);
-    if ~isempty(realPoles)
-        fprintf('Pade [%d/%d] has poles in the interval at x = ',M,N);
-        fprintf('%g ',realPoles); fprintf('\n');
+for i = 1:length(eiles)
+    n = eiles(i);
+    xu = linspace(a,b,n+1);
+    % Cebysevo mazgai turi buti surikiuoti spline funkcijai.
+    xc = sort((a+b)/2+(b-a)/2*cos((2*(0:n)+1)*pi/(2*(n+1))));
+    yu = f(xu); yc = f(xc);
+    p1 = lagran(xu,yu);
+    p2 = lagran(xc,yc);
+    Y = [polyval(p1,x); polyval(p2,x); ...
+        spline(xu,yu,x); spline(xc,yc,x)];
+    for j = 1:4
+        % NMSE: paklaidos energija / funkcijos energija.
+        NMSE(i,j) = sum((y-Y(j,:)).^2)/sum(y.^2);
     end
-    approx = [polyval(pL,x); polyval(pN,x); polyval(pC,x); ...
-        polyval(num,shiftedX)./denominator; spline(nodes,values,x)];
-    for j = 1:5
-        mse(i,j) = mean((y-approx(j,:)).^2);
-        maxError(i,j) = max(abs(y-approx(j,:)));
-    end
-    if ~isempty(realPoles)
-        maxError(i,4) = Inf; % the continuous maximum is unbounded
-    end
-    nodeDifference(i) = max(abs(approx(1,:)-approx(2,:)));
-
-    % Break plot lines across poles instead of joining both branches.
-    plotApprox = approx;
-    for pole = realPoles'
-        [~,nearest] = min(abs(x-pole));
-        plotApprox(4,max(1,nearest-1):min(length(x),nearest+1)) = NaN;
-    end
-    figure('Name',sprintf('Order %d',n));
-    subplot(2,1,1);
-    plot(x,y,'k-',x,plotApprox,'LineWidth',1.1); hold on;
-    plot(nodes,values,'ko',chebNodes,chebValues,'ms');
-    legend([{'Function'},methods,{'Uniform nodes','Chebyshev nodes'}], ...
+    figure('Theme','light');
+    plot(x,y,'k-',x,Y,'LineWidth',1.2); hold on;
+    plot(xu,yu,'ko',xc,yc,'ms');
+    legend([{'Function'},metodai,{'Uniform nodes','Chebyshev nodes'}], ...
         'Location','best');
+    title(sprintf('Variant %d, degree %d',variantas,n));
     xlabel('x'); ylabel('y'); grid on;
-    title(sprintf('Variant %d, degree %d, %d nodes',variant,n,n+1));
-    subplot(2,1,2);
-    plot(x,y,'k-',x,yTaylor,'b--',x,plotApprox(4,:),'r-','LineWidth',1.1);
-    legend('Function','Taylor','Pade','Location','best');
-    xlabel('x'); ylabel('y'); grid on;
-    title(sprintf('Taylor about x0 = %g; Pade [%d/%d]',x0,M,N));
 end
-
-disp('Mean squared errors:');
-disp(array2table([orders' mse],'VariableNames',[{'Degree'},methods]));
-disp('Maximum absolute errors:');
-disp(array2table([orders' maxError],'VariableNames',[{'Degree'},methods]));
-disp('Difference between Lagrange and Newton on the same grid:');
-disp(table(orders',nodeDifference,'VariableNames',{'Degree','Difference'}));
-figure('Name','Approximation errors');
-subplot(2,1,1);
-semilogy(orders,max(mse,eps),'-o');
-legend(methods,'Location','best'); xlabel('Degree'); ylabel('MSE'); grid on;
-subplot(2,1,2);
-semilogy(orders,max(maxError,eps),'-o');
-legend(methods,'Location','best'); xlabel('Degree'); ylabel('Maximum error'); grid on;
-end
-
-% Keep plots readable when MATLAB uses a dark theme.
-set(findall(groot,'Type','figure'),'Color','w');
-set(findall(groot,'Type','axes'),'Color','w','XColor','k','YColor','k');
-set(findall(groot,'Type','legend'),'Color','w','TextColor','k');
-set(findall(groot,'Type','text'),'Color','k');
+disp(array2table([eiles' NMSE],'VariableNames', ...
+    {'Degree','LagrangeUniform','LagrangeChebyshev','SplineUniform','SplineChebyshev'}));
+figure('Theme','light');
+semilogy(eiles,NMSE,'-o'); grid on;
+legend(metodai,'Location','best');
+xlabel('Degree'); ylabel('NMSE');
